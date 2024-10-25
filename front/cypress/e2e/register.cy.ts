@@ -1,11 +1,11 @@
-describe('Register Page Spec', () => {
+describe('User Registration Functionality', () => {
   beforeEach(() => {
     cy.intercept('POST', '/api/auth/register', {
       statusCode: 201,
       body: {
         id: 1,
-        username: 'johnDoe',
-        email: 'johndoe@example.com',
+        username: 'toto',
+        email: 'toto3@toto.com',
       },
     }).as('registerUser');
 
@@ -13,10 +13,10 @@ describe('Register Page Spec', () => {
   });
 
   it('Successful registration', () => {
-    cy.get('input[formControlName=firstName]').type('John');
-    cy.get('input[formControlName=lastName]').type('Doe');
-    cy.get('input[formControlName=email]').type('johndoe@example.com');
-    cy.get('input[formControlName=password]').type('password123');
+    cy.get('input[formControlName=firstName]').type('toto');
+    cy.get('input[formControlName=lastName]').type('toto');
+    cy.get('input[formControlName=email]').type('toto3@toto.com');
+    cy.get('input[formControlName=password]').type('test!1234');
 
     cy.get('button[type="submit"]').click();
     cy.url().should('include', '/login');
@@ -30,10 +30,10 @@ describe('Register Page Spec', () => {
       },
     }).as('registerUserWithError');
 
-    cy.get('input[formControlName=firstName]').type('John');
-    cy.get('input[formControlName=lastName]').type('Doe');
-    cy.get('input[formControlName=email]').type('johndoe@example.com');
-    cy.get('input[formControlName=password]').type('password123');
+    cy.get('input[formControlName=firstName]').type('toto');
+    cy.get('input[formControlName=lastName]').type('toto');
+    cy.get('input[formControlName=email]').type('toto3@toto.com');
+    cy.get('input[formControlName=password]').type('test!1234');
 
     cy.get('button[type="submit"]').click();
     cy.get('.error').should('be.visible').and('contain', 'An error occurred');
@@ -50,10 +50,10 @@ describe('Register Page Spec', () => {
   });
 
   it('Should enable the submit button if the form is valid', () => {
-    cy.get('input[formControlName=firstName]').type('John');
-    cy.get('input[formControlName=lastName]').type('Doe');
-    cy.get('input[formControlName=email]').type('johndoe@example.com');
-    cy.get('input[formControlName=password]').type('password123');
+    cy.get('input[formControlName=firstName]').type('toto');
+    cy.get('input[formControlName=lastName]').type('toto');
+    cy.get('input[formControlName=email]').type('toto3@toto.com');
+    cy.get('input[formControlName=password]').type('test!1234');
 
     const submitButton = cy.get('button[type="submit"]');
     submitButton.should('not.be.disabled');

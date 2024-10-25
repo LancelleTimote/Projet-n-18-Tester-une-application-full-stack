@@ -1,4 +1,4 @@
-describe('Login spec', () => {
+describe('User Login Functionality', () => {
   it('Login successful', () => {
     cy.visit('/login');
 

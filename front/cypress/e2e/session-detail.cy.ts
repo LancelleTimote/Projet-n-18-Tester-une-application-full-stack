@@ -1,4 +1,4 @@
-describe('Update session spec', () => {
+describe('Session Detail and Update Functionality', () => {
   const user = {
     id: 1,
     email: 'yoga@studio.com',
@@ -9,7 +9,7 @@ describe('Update session spec', () => {
   beforeEach(() => {
     cy.intercept('GET', '/api/session', { fixture: 'sessions-list.json' });
     cy.intercept('GET', '/api/session/1', { fixture: 'session-empty.json' });
-    cy.intercept('GET', '/api/teacher/1', { fixture: 'teacher-detail.json' });
+    cy.intercept('GET', '/api/teacher/1', { fixture: 'teacher-single.json' });
 
     cy.visit('/login');
 
@@ -111,7 +111,7 @@ describe('Update session spec', () => {
       cy.get('div').contains(`${formattedUpdatedDate}`).should('exist');
     });
 
-    cy.fixture('teacher-detail.json').then((teacher) => {
+    cy.fixture('teacher-single.json').then((teacher) => {
       cy.get('span')
         .contains(`${teacher.firstName} ${teacher.lastName.toUpperCase()}`)
         .should('exist');
@@ -129,7 +129,7 @@ describe('Update session spec', () => {
         fixture: 'session-with-participant.json',
       });
       cy.intercept('GET', `/api/teacher/${session.teacher_id}`, {
-        fixture: 'teacher-detail.json',
+        fixture: 'teacher-single.json',
       });
 
       cy.get('button').contains('Participate').click();
@@ -147,7 +147,7 @@ describe('Update session spec', () => {
         fixture: 'session-empty.json',
       });
       cy.intercept('GET', `/api/teacher/${session.teacher_id}`, {
-        fixture: 'teacher-detail.json',
+        fixture: 'teacher-single.json',
       });
 
       cy.get('button').contains('Do not participate').click();
