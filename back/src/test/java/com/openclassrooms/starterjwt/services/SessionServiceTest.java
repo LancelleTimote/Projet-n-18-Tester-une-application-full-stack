@@ -1,4 +1,4 @@
-package com.openclassrooms.starterjwt;
+package com.openclassrooms.starterjwt.services;
 
 import com.openclassrooms.starterjwt.exception.BadRequestException;
 import com.openclassrooms.starterjwt.exception.NotFoundException;
@@ -6,7 +6,6 @@ import com.openclassrooms.starterjwt.models.Session;
 import com.openclassrooms.starterjwt.models.User;
 import com.openclassrooms.starterjwt.repository.SessionRepository;
 import com.openclassrooms.starterjwt.repository.UserRepository;
-import com.openclassrooms.starterjwt.services.SessionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -101,5 +100,24 @@ class SessionServiceTest {
         session.setUsers(new ArrayList<>());
         when(sessionRepository.findById(1L)).thenReturn(Optional.of(session));
         assertThrows(BadRequestException.class, () -> sessionService.noLongerParticipate(1L, 1L));
+    }
+
+    @Test
+    void updateSession_ShouldUpdateAndReturnSession() {
+        Session updatedSession = new Session().setId(1L).setName("Updated Session");
+        when(sessionRepository.findById(1L)).thenReturn(Optional.of(session));
+        when(sessionRepository.save(any(Session.class))).thenReturn(updatedSession);
+
+        Session result = sessionService.update(1L, updatedSession);
+
+        assertEquals(updatedSession.getName(), result.getName());
+        verify(sessionRepository, times(1)).save(any(Session.class));
+    }
+
+    @Test
+    void deleteSession_ShouldThrowNotFoundException_WhenSessionDoesNotExist() {
+        doThrow(new NotFoundException()).when(sessionRepository).deleteById(1L);
+
+        assertThrows(NotFoundException.class, () -> sessionService.delete(1L));
     }
 }
