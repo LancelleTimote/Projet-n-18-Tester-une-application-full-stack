@@ -28,7 +28,7 @@ describe('User Login Functionality', () => {
 
   it('Login unsuccessful with incorrect email', () => {
     cy.visit('/login');
-    const user = { email: 'yoga@studio.com', password: 'test!1234' };
+    const user = { email: 'yogaa@studio.com', password: 'test!1234' };
 
     cy.intercept('POST', '/api/auth/login', {
       statusCode: 401,
