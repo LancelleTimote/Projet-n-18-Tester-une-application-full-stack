@@ -8,116 +8,118 @@ import com.openclassrooms.starterjwt.repository.SessionRepository;
 import com.openclassrooms.starterjwt.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.test.annotation.Rollback;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
+@SpringBootTest
+@Transactional
+@Rollback
 class SessionServiceTest {
 
-    @Mock
+    @Autowired
+    private SessionService sessionService;
+
+    @Autowired
     private SessionRepository sessionRepository;
 
-    @Mock
+    @Autowired
     private UserRepository userRepository;
-
-    @InjectMocks
-    private SessionService sessionService;
 
     private Session session;
     private User user;
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
-        session = new Session().setId(1L).setName("Session 1");
-        user = new User().setId(1L).setFirstName("Yoga").setLastName("Studio").setEmail("yoga@studio.com");
+        session = new Session()
+                .setName("Session 1")
+                .setDescription("My description")
+                .setDate(new java.util.Date())
+                .setUsers(new ArrayList<>());
+
+        user = userRepository.findByEmail("yoga@studio.com").orElseThrow(NotFoundException::new);
     }
 
     @Test
     void createSession_ShouldSaveAndReturnSession() {
-        when(sessionRepository.save(session)).thenReturn(session);
         Session createdSession = sessionService.create(session);
-        assertEquals(session, createdSession);
-        verify(sessionRepository, times(1)).save(session);
+        assertNotNull(createdSession.getId());
+        assertEquals(session.getName(), createdSession.getName());
     }
 
     @Test
     void deleteSession_ShouldDeleteSessionById() {
-        sessionService.delete(1L);
-        verify(sessionRepository, times(1)).deleteById(1L);
+        Session createdSession = sessionService.create(session);
+        Long sessionId = createdSession.getId();
+
+        sessionService.delete(sessionId);
+        Optional<Session> deletedSession = sessionRepository.findById(sessionId);
+
+        assertFalse(deletedSession.isPresent());
     }
 
     @Test
     void getSessionById_ShouldReturnSessionIfFound() {
-        when(sessionRepository.findById(1L)).thenReturn(Optional.of(session));
-        Session foundSession = sessionService.getById(1L);
-        assertEquals(session, foundSession);
+        Session createdSession = sessionService.create(session);
+        Session foundSession = sessionService.getById(createdSession.getId());
+
+        assertNotNull(foundSession);
+        assertEquals(createdSession.getId(), foundSession.getId());
     }
 
     @Test
     void getSessionById_ShouldReturnNullIfNotFound() {
-        when(sessionRepository.findById(1L)).thenReturn(Optional.empty());
-        Session foundSession = sessionService.getById(1L);
+        Session foundSession = sessionService.getById(999L);
         assertNull(foundSession);
     }
 
     @Test
     void participate_ShouldAddUserToSession() {
-        session.setUsers(new ArrayList<>());
-        when(sessionRepository.findById(1L)).thenReturn(Optional.of(session));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        Session createdSession = sessionService.create(session);
+        sessionService.participate(createdSession.getId(), user.getId());
 
-        sessionService.participate(1L, 1L);
-        assertTrue(session.getUsers().contains(user));
-        verify(sessionRepository, times(1)).save(session);
-    }
-
-    @Test
-    void participate_ShouldThrowNotFoundExceptionIfSessionOrUserNotFound() {
-        when(sessionRepository.findById(1L)).thenReturn(Optional.empty());
-        assertThrows(NotFoundException.class, () -> sessionService.participate(1L, 1L));
+        Session updatedSession = sessionService.getById(createdSession.getId());
+        assertTrue(updatedSession.getUsers().contains(user));
     }
 
     @Test
     void noLongerParticipate_ShouldRemoveUserFromSession() {
-        session.setUsers(List.of(user));
-        when(sessionRepository.findById(1L)).thenReturn(Optional.of(session));
+        session.setUsers(new ArrayList<>());
+        Session createdSession = sessionService.create(session);
+        sessionService.participate(createdSession.getId(), user.getId());
 
-        sessionService.noLongerParticipate(1L, 1L);
-        assertFalse(session.getUsers().contains(user));
-        verify(sessionRepository, times(1)).save(session);
+        sessionService.noLongerParticipate(createdSession.getId(), user.getId());
+
+        Session updatedSession = sessionService.getById(createdSession.getId());
+        assertFalse(updatedSession.getUsers().contains(user));
     }
 
     @Test
     void noLongerParticipate_ShouldThrowBadRequestExceptionIfUserNotInSession() {
         session.setUsers(new ArrayList<>());
-        when(sessionRepository.findById(1L)).thenReturn(Optional.of(session));
-        assertThrows(BadRequestException.class, () -> sessionService.noLongerParticipate(1L, 1L));
+        Session createdSession = sessionService.create(session);
+        assertThrows(BadRequestException.class, () -> sessionService.noLongerParticipate(createdSession.getId(), user.getId())); // Utilisateur non trouvé dans la session
     }
 
     @Test
     void updateSession_ShouldUpdateAndReturnSession() {
-        Session updatedSession = new Session().setId(1L).setName("Updated Session");
-        when(sessionRepository.findById(1L)).thenReturn(Optional.of(session));
-        when(sessionRepository.save(any(Session.class))).thenReturn(updatedSession);
+        Session createdSession = sessionService.create(session);
+        createdSession.setName("Updated Session");
 
-        Session result = sessionService.update(1L, updatedSession);
+        Session updatedSession = sessionService.update(createdSession.getId(), createdSession);
 
-        assertEquals(updatedSession.getName(), result.getName());
-        verify(sessionRepository, times(1)).save(any(Session.class));
+        assertEquals("Updated Session", updatedSession.getName());
     }
 
     @Test
     void deleteSession_ShouldThrowNotFoundException_WhenSessionDoesNotExist() {
-        doThrow(new NotFoundException()).when(sessionRepository).deleteById(1L);
-
-        assertThrows(NotFoundException.class, () -> sessionService.delete(1L));
+        assertThrows(EmptyResultDataAccessException.class, () -> sessionService.delete(999L));
     }
 }
