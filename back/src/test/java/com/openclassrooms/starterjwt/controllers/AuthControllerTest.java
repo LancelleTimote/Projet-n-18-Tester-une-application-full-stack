@@ -1,98 +1,65 @@
 package com.openclassrooms.starterjwt.controllers;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.openclassrooms.starterjwt.payload.request.LoginRequest;
-import com.openclassrooms.starterjwt.payload.request.SignupRequest;
-import com.openclassrooms.starterjwt.payload.response.JwtResponse;
-import com.openclassrooms.starterjwt.payload.response.MessageResponse;
 import com.openclassrooms.starterjwt.repository.UserRepository;
-import com.openclassrooms.starterjwt.security.jwt.JwtUtils;
-import com.openclassrooms.starterjwt.security.services.UserDetailsImpl;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.core.Authentication;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.web.servlet.MockMvc;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-import static org.mockito.MockitoAnnotations.openMocks;
+import static org.hamcrest.Matchers.is;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-class AuthControllerTest {
-    @Mock
-    private AuthenticationManager authenticationManager;
+@SpringBootTest
+@AutoConfigureMockMvc
+public class AuthControllerTest {
 
-    @Mock
-    private JwtUtils jwtUtils;
+    @Autowired
+    private MockMvc mockMvc;
 
-    @Mock
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @Mock
+    @Autowired
     private UserRepository userRepository;
 
-    @InjectMocks
-    private AuthController authController;
-
-    @BeforeEach
-    void setUp() {
-        openMocks(this);
-    }
-
     @Test
-    void authenticateUser_shouldReturnJwtToken_onSuccessfulAuthentication() {
+    void authenticateUser_shouldReturnJwtToken_onSuccessfulAuthentication() throws Exception {
         LoginRequest loginRequest = new LoginRequest();
-        loginRequest.setEmail("test@example.com");
-        loginRequest.setPassword("password");
+        loginRequest.setEmail("yoga@studio.com");
+        loginRequest.setPassword("test!1234");
 
-        UserDetailsImpl userDetails = new UserDetailsImpl(1L, "YogaStudio", "Yoga", "Studio", true, "test!1234");
-        Authentication authentication = mock(Authentication.class);
+        String loginRequestJson = new ObjectMapper().writeValueAsString(loginRequest);
 
-        when(authenticationManager.authenticate(any())).thenReturn(authentication);
-        when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(jwtUtils.generateJwtToken(authentication)).thenReturn("jwt-token");
-
-        ResponseEntity<?> response = authController.authenticateUser(loginRequest);
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertTrue(response.getBody() instanceof JwtResponse);
-        JwtResponse jwtResponse = (JwtResponse) response.getBody();
-        assertEquals("jwt-token", jwtResponse.getToken());
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginRequestJson))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.username").value("yoga@studio.com"))
+                .andExpect(jsonPath("$.admin").value(true));
     }
 
     @Test
-    void registerUser_shouldReturnSuccessMessage_onValidSignup() {
-        SignupRequest signupRequest = new SignupRequest();
-        signupRequest.setEmail("newuser@example.com");
-        signupRequest.setPassword("password");
-        signupRequest.setFirstName("First");
-        signupRequest.setLastName("Last");
-
-        when(userRepository.existsByEmail(signupRequest.getEmail())).thenReturn(false);
-        when(passwordEncoder.encode(signupRequest.getPassword())).thenReturn("encoded-password");
-
-        ResponseEntity<?> response = authController.registerUser(signupRequest);
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertTrue(response.getBody() instanceof MessageResponse);
-        assertEquals("User registered successfully!", ((MessageResponse) response.getBody()).getMessage());
+    void registerUser_shouldReturnSuccessMessage_onValidSignup() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\": \"newuser@example.com\", \"password\": \"password\", \"firstName\": \"First\", \"lastName\": \"Last\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message", is("User registered successfully!")));
     }
 
     @Test
-    void registerUser_shouldReturnErrorMessage_ifEmailAlreadyExists() {
-        SignupRequest signupRequest = new SignupRequest();
-        signupRequest.setEmail("existinguser@example.com");
-
-        when(userRepository.existsByEmail(signupRequest.getEmail())).thenReturn(true);
-
-        ResponseEntity<?> response = authController.registerUser(signupRequest);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertTrue(response.getBody() instanceof MessageResponse);
-        assertEquals("Error: Email is already taken!", ((MessageResponse) response.getBody()).getMessage());
+    void registerUser_shouldReturnErrorMessage_ifEmailAlreadyExists() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\": \"yoga@studio.com\", \"password\": \"password\", \"firstName\": \"First\", \"lastName\": \"Last\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", is("Error: Email is already taken!")));
     }
 }

@@ -3,8 +3,8 @@ VALUES ('Margot', 'DELAHAYE'),
        ('Hélène', 'THIERCELIN');
 
 INSERT INTO USERS (first_name, last_name, admin, email, password)
-VALUES ('Yoga', 'Studio', true, 'yoga@studio.com', '$2a$10$.Hsa/ZjUVaHqi0tp9xieMeewrnZxrZ5pQRzddUXE/WjDu2ZThe6Iq'),
-       ('toto', 'toto', false, 'toto3@toto.com', '$2a$10$D4bHs/ZxUEW9P9JihHeO.PTmxd/lO9epORkdd7xYFg8QmZ/YmB3Iq');
+VALUES ('Yoga', 'Studio', true, 'yoga@studio.com', '$2a$10$iW4QP4Zinp3Yh25LjSNRHeDeLwGwykO7ddmXGNcdNWk/0tKM4SmCC'),
+       ('toto', 'toto', false, 'toto3@toto.com', '$2a$10$iW4QP4Zinp3Yh25LjSNRHeDeLwGwykO7ddmXGNcdNWk/0tKM4SmCC');
 
 INSERT INTO SESSIONS (name, description, date, teacher_id)
 VALUES ('Session 1', 'My description', '2024-12-01 10:00:00', 1),
