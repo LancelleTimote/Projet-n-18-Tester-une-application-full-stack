@@ -2,51 +2,47 @@ package com.openclassrooms.starterjwt.services;
 
 import com.openclassrooms.starterjwt.models.User;
 import com.openclassrooms.starterjwt.repository.UserRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
 
+@SpringBootTest
+@Transactional
 class UserServiceTest {
 
-    @Mock
-    private UserRepository userRepository;
-
-    @InjectMocks
+    @Autowired
     private UserService userService;
 
-    private User user;
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        user = new User().setId(1L).setFirstName("Yoga").setLastName("Studio").setEmail("yoga@studio.com");
-    }
+    @Autowired
+    private UserRepository userRepository;
 
     @Test
     void delete_ShouldDeleteUserById() {
-        userService.delete(1L);
-        verify(userRepository, times(1)).deleteById(1L);
+        User user = userRepository.findByEmail("yoga@studio.com").orElseThrow();
+
+        userService.delete(user.getId());
+
+        Optional<User> deletedUser = userRepository.findById(user.getId());
+        assertFalse(deletedUser.isPresent());
     }
 
     @Test
     void findById_ShouldReturnUserIfFound() {
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        User foundUser = userService.findById(1L);
-        assertEquals(user, foundUser);
+        User user = userRepository.findByEmail("yoga@studio.com").orElseThrow();
+
+        User foundUser = userService.findById(user.getId());
+        assertNotNull(foundUser);
+        assertEquals(user.getEmail(), foundUser.getEmail());
     }
 
     @Test
     void findById_ShouldReturnNullIfNotFound() {
-        when(userRepository.findById(1L)).thenReturn(Optional.empty());
-        User foundUser = userService.findById(1L);
+        User foundUser = userService.findById(999L);
         assertNull(foundUser);
     }
 }
