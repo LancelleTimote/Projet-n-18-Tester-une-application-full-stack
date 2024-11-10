@@ -1,75 +1,91 @@
 package com.openclassrooms.starterjwt.controllers;
 
-import com.openclassrooms.starterjwt.mapper.TeacherMapper;
-import com.openclassrooms.starterjwt.models.Teacher;
-import com.openclassrooms.starterjwt.services.TeacherService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.openclassrooms.starterjwt.repository.SessionRepository;
+import com.openclassrooms.starterjwt.repository.TeacherRepository;
+import com.openclassrooms.starterjwt.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-import static org.mockito.MockitoAnnotations.openMocks;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-class TeacherControllerTest {
-    @Mock
-    private TeacherMapper teacherMapper;
+@SpringBootTest
+@AutoConfigureMockMvc
+public class TeacherControllerTest {
 
-    @Mock
-    private TeacherService teacherService;
+    @Autowired
+    private MockMvc mockMvc;
 
-    @InjectMocks
-    private TeacherController teacherController;
+    @Autowired
+    private TeacherRepository teacherRepository;
+
+    @Autowired
+    private SessionRepository sessionRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    private String jwtToken;
 
     @BeforeEach
-    void setUp() {
-        openMocks(this);
+    void setUp() throws Exception {
+        String loginRequest = "{\"email\": \"yoga@studio.com\", \"password\": \"test!1234\"}";
+        String response = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginRequest))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        Map<String, String> responseMap = objectMapper.readValue(response, Map.class);
+        jwtToken = responseMap.get("token");
     }
 
     @Test
-    void findById_shouldReturnTeacherDto_onExistingTeacher() {
-        Teacher teacher = new Teacher();
-        teacher.setId(1L);
-
-        when(teacherService.findById(1L)).thenReturn(teacher);
-
-        ResponseEntity<?> response = teacherController.findById("1");
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
+    void findById_shouldReturnTeacherDto_onExistingTeacher() throws Exception {
+        mockMvc.perform(get("/api/teacher/1")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.lastName").value("DELAHAYE"))
+                .andExpect(jsonPath("$.firstName").value("Margot"));
     }
 
     @Test
-    void findAll_shouldReturnListOfTeacherDtos() {
-        List<Teacher> teachers = Collections.singletonList(new Teacher());
-        when(teacherService.findAll()).thenReturn(teachers);
-
-        ResponseEntity<?> response = teacherController.findAll();
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
+    void findById_shouldReturnNotFound_ifTeacherDoesNotExist() throws Exception {
+        mockMvc.perform(get("/api/teacher/999")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isNotFound());
     }
 
     @Test
-    void findAll_shouldReturnEmptyList_whenNoTeachers() {
-        when(teacherService.findAll()).thenReturn(Collections.emptyList());
-
-        ResponseEntity<?> response = teacherController.findAll();
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertTrue(((List<?>) response.getBody()).isEmpty());
+    void findAll_shouldReturnListOfTeachers() throws Exception {
+        mockMvc.perform(get("/api/teacher")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[1].id").value(2));
     }
 
     @Test
-    void findById_shouldReturnNotFound_ifTeacherDoesNotExist() {
-        when(teacherService.findById(1L)).thenReturn(null);
+    void findAll_shouldReturnEmptyList_whenNoTeachers() throws Exception {
+        sessionRepository.deleteAll();
 
-        ResponseEntity<?> response = teacherController.findById("1");
+        teacherRepository.deleteAll();
 
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        mockMvc.perform(get("/api/teacher")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
     }
 }
