@@ -1,122 +1,135 @@
 package com.openclassrooms.starterjwt.controllers;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.openclassrooms.starterjwt.dto.SessionDto;
-import com.openclassrooms.starterjwt.mapper.SessionMapper;
-import com.openclassrooms.starterjwt.models.Session;
-import com.openclassrooms.starterjwt.services.SessionService;
+import com.openclassrooms.starterjwt.repository.SessionRepository;
+import com.openclassrooms.starterjwt.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.Collections;
-import java.util.List;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
+import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-import static org.mockito.MockitoAnnotations.openMocks;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-class SessionControllerTest {
-    @Mock
-    private SessionMapper sessionMapper;
+@SpringBootTest
+@AutoConfigureMockMvc
+public class SessionControllerTest {
 
-    @Mock
-    private SessionService sessionService;
+    @Autowired
+    private MockMvc mockMvc;
 
-    @InjectMocks
-    private SessionController sessionController;
+    @Autowired
+    private SessionRepository sessionRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    private String jwtToken;
 
     @BeforeEach
-    void setUp() {
-        openMocks(this);
+    void setUp() throws Exception {
+        String loginRequest = "{\"email\": \"yoga@studio.com\", \"password\": \"test!1234\"}";
+        String response = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginRequest))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        Map<String, String> responseMap = objectMapper.readValue(response, Map.class);
+        jwtToken = responseMap.get("token");
     }
 
     @Test
-    void findById_shouldReturnSessionDto_onExistingSession() {
-        Session session = new Session();
-        session.setId(1L);
+    void findById_shouldReturnSessionDto_onExistingSession() throws Exception {
+        mockMvc.perform(get("/api/session/1")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.name").value("Session 1"))
+                .andExpect(jsonPath("$.description").value("My description"));
+    }
+
+    @Test
+    void findById_shouldReturnNotFound_ifSessionDoesNotExist() throws Exception {
+        mockMvc.perform(get("/api/session/999")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void findAll_shouldReturnListOfSessions() throws Exception {
+        mockMvc.perform(get("/api/session")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[1].id").value(2));
+    }
+
+    @Test
+    void create_shouldReturnCreatedSession() throws Exception {
+        SessionDto sessionDto = new SessionDto();
+        sessionDto.setName("New Session");
+        sessionDto.setDescription("A new session description");
+
+        LocalDateTime localDateTime = LocalDateTime.parse("2024-12-05T10:00:00");
+        Date date = Date.from(localDateTime.atZone(ZoneId.systemDefault()).toInstant());
+        sessionDto.setDate(date);
+        sessionDto.setTeacher_id(1L);
+
+        mockMvc.perform(post("/api/session")
+                        .header("Authorization", "Bearer " + jwtToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sessionDto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("New Session"))
+                .andExpect(jsonPath("$.description").value("A new session description"));
+    }
+
+    @Test
+    void participate_shouldAddUserToSession_onValidRequest() throws Exception {
+        mockMvc.perform(post("/api/session/1/participate/2")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void update_shouldReturnUpdatedSession_onValidRequest() throws Exception {
         SessionDto sessionDto = new SessionDto();
         sessionDto.setId(1L);
+        sessionDto.setName("Updated Session");
+        sessionDto.setDescription("Updated session description");
 
-        when(sessionService.getById(1L)).thenReturn(session);
-        when(sessionMapper.toDto(session)).thenReturn(sessionDto);
+        LocalDateTime localDateTime = LocalDateTime.parse("2024-12-05T10:00:00");
+        Date date = Date.from(localDateTime.atZone(ZoneId.systemDefault()).toInstant());
+        sessionDto.setDate(date);
 
-        ResponseEntity<?> response = sessionController.findById("1");
+        sessionDto.setTeacher_id(1L);
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(sessionDto, response.getBody());
+        mockMvc.perform(put("/api/session/1")
+                        .header("Authorization", "Bearer " + jwtToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sessionDto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Updated Session"))
+                .andExpect(jsonPath("$.description").value("Updated session description"));
     }
 
     @Test
-    void findById_shouldReturnNotFound_ifSessionDoesNotExist() {
-        when(sessionService.getById(1L)).thenReturn(null);
-
-        ResponseEntity<?> response = sessionController.findById("1");
-
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-    }
-
-    @Test
-    void findAll_shouldReturnListOfSessions() {
-        List<Session> sessions = Collections.singletonList(new Session());
-        List<SessionDto> sessionDtos = Collections.singletonList(new SessionDto());
-
-        when(sessionService.findAll()).thenReturn(sessions);
-        when(sessionMapper.toDto(sessions)).thenReturn(sessionDtos);
-
-        ResponseEntity<?> response = sessionController.findAll();
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(sessionDtos, response.getBody());
-    }
-
-    @Test
-    void create_shouldReturnCreatedSession() {
-        SessionDto sessionDto = new SessionDto();
-        Session session = new Session();
-
-        when(sessionMapper.toEntity(sessionDto)).thenReturn(session);
-        when(sessionService.create(session)).thenReturn(session);
-        when(sessionMapper.toDto(session)).thenReturn(sessionDto);
-
-        ResponseEntity<?> response = sessionController.create(sessionDto);
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(sessionDto, response.getBody());
-    }
-
-    @Test
-    void participate_shouldAddUserToSession_onValidRequest() {
-        ResponseEntity<?> response = sessionController.participate("1", "2");
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        verify(sessionService, times(1)).participate(1L, 2L);
-    }
-
-    @Test
-    void update_shouldReturnUpdatedSession_onValidRequest() {
-        SessionDto sessionDto = new SessionDto();
-        sessionDto.setId(1L);
-        Session session = new Session();
-        session.setId(1L);
-
-        when(sessionMapper.toEntity(sessionDto)).thenReturn(session);
-        when(sessionService.update(1L, session)).thenReturn(session);
-        when(sessionMapper.toDto(session)).thenReturn(sessionDto);
-
-        ResponseEntity<?> response = sessionController.update("1", sessionDto);
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(sessionDto, response.getBody());
-    }
-
-    @Test
-    void noLongerParticipate_shouldReturnOk_whenUserLeavesSession() {
-        ResponseEntity<?> response = sessionController.noLongerParticipate("1", "2");
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        verify(sessionService, times(1)).noLongerParticipate(1L, 2L);
+    void noLongerParticipate_shouldReturnOk_whenUserLeavesSession() throws Exception {
+        mockMvc.perform(delete("/api/session/1/participate/2")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk());
     }
 }
