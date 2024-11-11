@@ -68,8 +68,7 @@ La manageuse te contactera de suite avec les détails.
 
 ## :wrench: 6. Installation <a name = "installation"></a>
 
-- Cloner ce repository.
-- Côté front-end pour installer les différents packages, dans le terminal à partir du dossier front-end, exécuter npm install.
+Cloner ce repository.
 
 ## :question: 7. Utilisation du site web <a name = "utilisation_siteweb"></a>
 
